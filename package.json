@@ -14,6 +14,7 @@
   "repository": "YoruNoHikage/apex-api-gateway",
   "dependencies": {
     "aws-sdk": "^2.5.2",
+    "ini": "^1.3.4",
     "lodash.defaultsdeep": "^4.5.1",
     "lodash.topairs": "^4.3.0",
     "yargs": "^5.0.0"

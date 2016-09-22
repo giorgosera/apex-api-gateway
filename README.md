@@ -24,6 +24,8 @@ Commands:
   update                                   Update the REST API with the new Swagger definitions
 
 Options:
+  -r, --region   configure which aws region to use
+  -p, --profile  configure which aws profile to use
   -c, --config  Apex project JSON file location
   --help        Display help [boolean]
 ```
