@@ -6,23 +6,29 @@ const defaultsDeep = require('lodash.defaultsdeep');
 const entries = require('lodash.topairs');
 const yargs = require('yargs');
 const AWS = require('aws-sdk');
-const apigateway = new AWS.APIGateway();
+const ini = require('ini');
 
 const args = yargs
-              .usage('Usage: $0 <command> [options]')
-              .alias('c', 'config')
-              .nargs('c', 1)
-              .describe('c', 'Apex project JSON file location')
-              .command('create <name> [description] [cloneFrom]', 'Create a new REST API on AWS API Gateway', {
-                force: { alias: 'f', describe: 'Force creating REST API overriding existing configuration' }
-              }, create)
-              .command('update', 'Update the REST API with the new Swagger definitions', {
-                stdout: { describe: 'Output swagger to console without deploying' },
-              }, update)
-              .help()
-              .argv;
+    .usage('Usage: $0 <command> [options]')
+    .alias('c', 'config')
+    .nargs('c', 1)
+    .describe('c', 'Apex project JSON file location')
+    .command('create <name> [description] [cloneFrom]', 'Create a new REST API on AWS API Gateway', {
+      region: {alias: 'r', describe: 'configure which aws region to use'},
+      profile: {alias: 'p', describe: 'configure which aws profile to use'},
+      force: {alias: 'f', describe: 'Force creating REST API overriding existing configuration'}
+    }, create)
+    .command('update', 'Update the REST API with the new Swagger definitions', {
+      region: {alias: 'r', describe: 'configure which aws region to use'},
+      profile: {alias: 'p', describe: 'configure which aws profile to use'},
+      stdout: {describe: 'Output swagger to console without deploying'},
+    }, update)
+    .help()
+    .argv;
 
-function create({ name, description = null, cloneFrom = '', config = './project.json', force }) {
+function create({name, description = null, cloneFrom = '', config = './project.json', force, region, profile}) {
+  loadAwsConfig(profile, region);
+  const apigateway = new AWS.APIGateway();
   const projectConfig = loadConfig(config);
 
   if(!force && projectConfig && projectConfig['x-api-gateway'] && projectConfig['x-api-gateway']['rest-api-id']) {
@@ -57,7 +63,9 @@ function create({ name, description = null, cloneFrom = '', config = './project.
   });
 }
 
-function update({ config, stdout }) {
+function update({config, stdout, profile, region}) {
+  loadAwsConfig(profile, region);
+  const apigateway = new AWS.APIGateway();
   const projectConfig = loadConfig(config);
 
   if(!projectConfig['x-api-gateway'] || !projectConfig['x-api-gateway']['rest-api-id']) {
@@ -183,4 +191,20 @@ function update({ config, stdout }) {
 
 function loadConfig(projectFile = './project.json') {
   return require(path.join(process.cwd(), projectFile));
+}
+
+function loadAwsConfig(profile, region) {
+  if (profile && profile !== 'default') {
+    console.log('setting up api-gateway using profile ' + profile);
+    AWS.config.credentials = new AWS.SharedIniFileCredentials({profile: profile});
+
+    // in order to load the profile's config we need to require the ini file
+    var profiles = ini.parse(fs.readFileSync(AWS.config.credentials.filename.replace('credentials', 'config'), 'utf-8'));
+    var profileConfig = profiles['profile ' + profile];
+    AWS.config.update(profileConfig);
+  }
+  if (region) {
+    console.log('setting up api-gateway using region ' + region);
+    AWS.config.update({region: region});
+  }
 }
